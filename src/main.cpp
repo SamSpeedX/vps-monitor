@@ -310,7 +310,7 @@ static void initialize_auth_db() {
             }
 
             sqlite3_bind_text(
-                statement, 1, "amin", -1, SQLITE_STATIC
+                statement, 1, "sam", -1, SQLITE_STATIC
             );
             sqlite3_bind_text(
                 statement, 2, password_hash.c_str(), -1, SQLITE_TRANSIENT
@@ -329,7 +329,7 @@ static void initialize_auth_db() {
             // This should happen only when the initial account is created.
             std::cout
                 << "\n========== VPS MONITOR INITIAL LOGIN ==========\n"
-                << "Username: amin\n"
+                << "Username: sam\n"
                 << "Password: " << password << "\n"
                 << "Save this password now. It will not be shown again.\n"
                 << "===============================================\n"
@@ -625,6 +625,14 @@ json docker_data() {
 }
 
 int main() {
+    try {
+        initialize_auth_db();
+    } catch (const std::exception& e) {
+        std::cerr << "Authentication database initialization failed: "
+                  << e.what() << '\n';
+        return 1;
+    }
+    
     httplib::Server server;
 
     server.Get("/login",
@@ -645,26 +653,9 @@ int main() {
     }
 );
 
+
 server.Post("/api/auth/login",
     [](const httplib::Request& req, httplib::Response& res) {
-        const std::string expected_email =
-            env_or("AUTH_EMAIL", "");
-
-        const std::string expected_password =
-            env_or("AUTH_PASSWORD", "");
-
-        if (expected_email.empty() || expected_password.empty()) {
-            res.status = 503;
-            res.set_content(
-                json{
-                    {"success", false},
-                    {"message", "Authentication is not configured"}
-                }.dump(),
-                "application/json"
-            );
-            return;
-        }
-
         json body;
 
         try {
@@ -672,38 +663,60 @@ server.Post("/api/auth/login",
         } catch (...) {
             res.status = 400;
             res.set_content(
-                json{{"success", false},
-                     {"message", "Invalid JSON body"}}.dump(),
+                json{
+                    {"success", false},
+                    {"message", "Invalid JSON body"}
+                }.dump(),
                 "application/json"
             );
             return;
         }
 
         if (!body.is_object() ||
-            !body.contains("email") ||
+            !body.contains("username") ||
             !body.contains("password") ||
-            !body["email"].is_string() ||
+            !body["username"].is_string() ||
             !body["password"].is_string()) {
             res.status = 400;
             res.set_content(
-                json{{"success", false},
-                     {"message", "Email and password are required"}}.dump(),
+                json{
+                    {"success", false},
+                    {"message", "Username and password are required"}
+                }.dump(),
                 "application/json"
             );
             return;
         }
 
-        const std::string email = body["email"].get<std::string>();
+        const std::string username =
+            body["username"].get<std::string>();
+
         const std::string password =
             body["password"].get<std::string>();
 
-        if (!constant_time_equal(email, expected_email) ||
-            !constant_time_equal(password, expected_password)) {
-            res.status = 401;
-            res.set_header("Cache-Control", "no-store");
+        try {
+            if (!verify_user_password(username, password)) {
+                res.status = 401;
+                res.set_header("Cache-Control", "no-store");
+                res.set_content(
+                    json{
+                        {"success", false},
+                        {"message", "Invalid username or password"}
+                    }.dump(),
+                    "application/json"
+                );
+                return;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Login database error: "
+                      << e.what() << '\n';
+
+            res.status = 500;
             res.set_content(
-                json{{"success", false},
-                     {"message", "Invalid email or password"}}.dump(),
+                json{
+                    {"success", false},
+                    {"message", "Authentication service unavailable"}
+                }.dump(),
                 "application/json"
             );
             return;
@@ -713,7 +726,6 @@ server.Post("/api/auth/login",
 
         {
             std::lock_guard<std::mutex> lock(sessions_mutex);
-
             sessions[token] = Clock::now() + SESSION_LIFETIME;
         }
 
