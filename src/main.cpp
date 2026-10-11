@@ -31,6 +31,14 @@ static std::unordered_map<
     Clock::time_point
 > sessions;
 
+static std::string env_or(
+    const char* name,
+    const std::string& fallback
+) {
+    const char* value = std::getenv(name);
+    return value && *value ? value : fallback;
+}
+
 static bool secure_cookies() {
     return env_or("COOKIE_SECURE", "true") == "true";
 }
@@ -154,15 +162,6 @@ static void set_session_cookie(
     res.set_header("Set-Cookie", cookie);
     res.set_header("Cache-Control", "no-store");
 }
-
-static std::string env_or(
-    const char* name,
-    const std::string& fallback
-) {
-    const char* value = std::getenv(name);
-    return value && *value ? value : fallback;
-}
-
 
 static std::string auth_db_path() {
     return env_or("AUTH_DB_PATH", "/data/vps-monitor.sqlite");
