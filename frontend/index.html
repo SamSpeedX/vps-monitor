@@ -1,58 +1,443 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VPS Monitor| Sam Software</title>
-<style>
-:root{color-scheme:dark;--bg:#0b1020;--panel:#141c30;--line:#29344b;--text:#edf2ff;--muted:#9ba9c4;--blue:#72a7ff;--green:#50d6a0}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,sans-serif}
-main{max-width:1200px;margin:auto;padding:28px 20px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:25px}
-h1{margin:0;font-size:26px}h2{font-size:17px;margin:0 0 18px}p{color:var(--muted)}
-#status{color:var(--green);font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-bottom:20px}
-.card,section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
-.label{color:var(--muted);font-size:13px}.number{font-size:29px;font-weight:700;margin:8px 0}
-.track{height:8px;border-radius:10px;background:#26314a;overflow:hidden;margin-top:12px}.bar{height:100%;width:0;background:var(--blue);border-radius:10px}
-section{margin-bottom:18px;overflow:hidden}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:620px}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);font-size:13px}th{color:var(--muted);font-weight:500}td{overflow-wrap:anywhere}.pill{background:#263653;border-radius:20px;padding:4px 9px;font-size:12px}
-button{background:#243858;color:white;border:1px solid #405779;padding:9px 14px;border-radius:9px;cursor:pointer}
-.error{color:#ff9c9c}.muted{color:var(--muted)}@media(max-width:600px){main{padding:18px 12px}.number{font-size:24px}}
-</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>VPS Monitor| Sam Software</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #0b1020;
+            --panel: #141c30;
+            --line: #29344b;
+            --text: #edf2ff;
+            --muted: #9ba9c4;
+            --blue: #72a7ff;
+            --green: #50d6a0
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 15px system-ui, sans-serif
+        }
+
+        main {
+            max-width: 1200px;
+            margin: auto;
+            padding: 28px 20px
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 25px
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 26px
+        }
+
+        h2 {
+            font-size: 17px;
+            margin: 0 0 18px
+        }
+
+        p {
+            color: var(--muted)
+        }
+
+        #status {
+            color: var(--green);
+            font-size: 13px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px
+        }
+
+        .card,
+        section {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 20px
+        }
+
+        .label {
+            color: var(--muted);
+            font-size: 13px
+        }
+
+        .number {
+            font-size: 29px;
+            font-weight: 700;
+            margin: 8px 0
+        }
+
+        .track {
+            height: 8px;
+            border-radius: 10px;
+            background: #26314a;
+            overflow: hidden;
+            margin-top: 12px
+        }
+
+        .bar {
+            height: 100%;
+            width: 0;
+            background: var(--blue);
+            border-radius: 10px
+        }
+
+        section {
+            margin-bottom: 18px;
+            overflow: hidden
+        }
+
+        .table-wrap {
+            overflow-x: auto
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 620px
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--line);
+            font-size: 13px
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 500
+        }
+
+        td {
+            overflow-wrap: anywhere
+        }
+
+        .pill {
+            background: #263653;
+            border-radius: 20px;
+            padding: 4px 9px;
+            font-size: 12px
+        }
+
+        button {
+            background: #243858;
+            color: white;
+            border: 1px solid #405779;
+            padding: 9px 14px;
+            border-radius: 9px;
+            cursor: pointer
+        }
+
+        .error {
+            color: #ff9c9c
+        }
+
+        .muted {
+            color: var(--muted)
+        }
+
+        @media(max-width:600px) {
+            main {
+                padding: 18px 12px
+            }
+
+            .number {
+                font-size: 24px
+            }
+        }
+    </style>
 </head>
+
 <body>
-<main>
-<header>
-<div><h1>VPS Monitor</h1><p>System and Docker overview</p></div>
-<div><span id="status">Connecting…</span> &nbsp; <button onclick="refresh()">Refresh</button></div>
-</header>
-<div class="grid">
-<div class="card"><div class="label">Disk used</div><div id="disk" class="number">—</div><div id="diskdetail" class="muted">Loading…</div><div class="track"><div id="diskbar" class="bar"></div></div></div>
-<div class="card"><div class="label">Memory used</div><div id="memory" class="number">—</div><div id="memorydetail" class="muted">Loading…</div><div class="track"><div id="memorybar" class="bar"></div></div></div>
-<div class="card"><div class="label">Containers</div><div id="containers" class="number">—</div><div class="muted">All Docker containers</div></div>
-<div class="card"><div class="label">Compose projects</div><div id="projects" class="number">—</div><div class="muted">Detected from Docker labels</div></div>
-</div>
-<section><h2>Docker storage breakdown</h2><div id="storage" class="table-wrap muted">Loading Docker storage…</div></section>
-<section><h2>Projects</h2><div id="projectlist" class="table-wrap muted">Loading projects…</div></section>
-<section><h2>Containers</h2><div id="containerlist" class="table-wrap muted">Loading containers…</div></section>
-<p class="muted">VPS Monitor v0.1 · Read-only monitoring | Copyright (C) Sam Software 2026</p>
-</main>
-<script>
-const byId=id=>document.getElementById(id);
-const bytes=n=>{if(n==null||!Number.isFinite(Number(n)))return "—";n=Number(n);const u=["B","KB","MB","GB","TB"];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return n.toFixed(i?1:0)+" "+u[i]};
-const esc=s=>String(s??"—").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function table(headers,rows){return `<table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v}</td>`).join("")}</tr>`).join("")||`<tr><td colspan="${headers.length}">No data</td></tr>`}</tbody></table>`}
-function metric(prefix,obj){let pct=Number(obj.used_percent||0);byId(prefix).textContent=pct.toFixed(1)+"%";byId(prefix+"detail").textContent=bytes(obj.used_bytes)+" used / "+bytes(obj.total_bytes)+" total";byId(prefix+"bar").style.width=Math.min(100,Math.max(0,pct))+"%"}
-async function refresh(){byId("status").textContent="Refreshing…";try{
-const [sysRes,dockRes]=await Promise.all([fetch("/api/system"),fetch("/api/docker")]);
-if(!sysRes.ok||!dockRes.ok)throw Error("API error ("+sysRes.status+"/"+dockRes.status+")");
-const s=await sysRes.json(),d=await dockRes.json();
-metric("disk",s.disk);metric("memory",s.memory);
-byId("containers").textContent=d.containers.length;byId("projects").textContent=d.projects.length;
-byId("storage").innerHTML=table(["Resource","Size","Reclaimable"],d.storage.map(x=>[esc(x.Type||x.raw||"—"),esc(x.Size||"—"),esc(x.Reclaimable||"—")]));
-byId("projectlist").innerHTML=table(["Project","Containers"],d.projects.map(p=>[esc(p.name),p.container_count]));
-byId("containerlist").innerHTML=table(["Name","Project","Status","Writable / virtual size","Image"],d.containers.map(c=>[esc(c.name),esc(c.project),`<span class="pill">${esc(c.status)}</span>`,esc(c.size),esc(c.image)]));
-byId("status").textContent="Live · "+new Date().toLocaleTimeString();
-}catch(e){byId("status").innerHTML='<span class="error">API error: '+esc(e.message)+'</span>'}}
-refresh();setInterval(refresh,15000);
-</script>
+    <main>
+        <header>
+            <div>
+                <h1>VPS Monitor</h1>
+                <p>System and Docker overview</p>
+            </div>
+
+            <div>
+                <span id="status">Checking session…</span>
+                &nbsp;
+                <button onclick="refresh()">Refresh</button>
+                <button id="logoutBtn" onclick="logout()">Logout</button>
+            </div>
+
+        </header>
+        <div class="grid">
+            <div class="card">
+                <div class="label">Disk used</div>
+                <div id="disk" class="number">—</div>
+                <div id="diskdetail" class="muted">Loading…</div>
+                <div class="track">
+                    <div id="diskbar" class="bar"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="label">Memory used</div>
+                <div id="memory" class="number">—</div>
+                <div id="memorydetail" class="muted">Loading…</div>
+                <div class="track">
+                    <div id="memorybar" class="bar"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="label">Containers</div>
+                <div id="containers" class="number">—</div>
+                <div class="muted">All Docker containers</div>
+            </div>
+            <div class="card">
+                <div class="label">Compose projects</div>
+                <div id="projects" class="number">—</div>
+                <div class="muted">Detected from Docker labels</div>
+            </div>
+        </div>
+        <section>
+            <h2>Docker storage breakdown</h2>
+            <div id="storage" class="table-wrap muted">Loading Docker storage…</div>
+        </section>
+        <section>
+            <h2>Projects</h2>
+            <div id="projectlist" class="table-wrap muted">Loading projects…</div>
+        </section>
+        <section>
+            <h2>Containers</h2>
+            <div id="containerlist" class="table-wrap muted">Loading containers…</div>
+        </section>
+        <p class="muted">VPS Monitor v0.1 · Read-only monitoring | Copyright (C) Sam Software 2026</p>
+    </main>
+    <script>
+
+        const byId = id => document.getElementById(id);
+
+        let refreshTimer = null;
+        let busy = false;
+
+        async function checkSession() {
+            try {
+                const res = await fetch("/api/auth/me", {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store"
+                });
+
+                if (!res.ok) {
+                    window.location.replace("/login");
+                    return false;
+                }
+
+                return true;
+            } catch (error) {
+                byId("status").textContent = "Cannot verify session";
+                return false;
+            }
+        }
+
+        async function logout() {
+            const btn = byId("logoutBtn");
+            btn.disabled = true;
+
+            try {
+                const res = await fetch("/api/auth/logout", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    cache: "no-store"
+                });
+
+                if (res.ok || res.status === 401) {
+                    window.location.replace("/login");
+                    return;
+                }
+
+                byId("status").textContent =
+                    "Logout failed (" + res.status + ")";
+            } catch (error) {
+                byId("status").textContent = "Logout request failed";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        const bytes = n => {
+            if (n == null || !Number.isFinite(Number(n))) return "—";
+
+            n = Number(n);
+            const units = ["B", "KB", "MB", "GB", "TB"];
+            let i = 0;
+
+            while (n >= 1024 && i < units.length - 1) {
+                n /= 1024;
+                i++;
+            }
+
+            return n.toFixed(i ? 1 : 0) + " " + units[i];
+        };
+
+        const esc = s => String(s ?? "—").replace(/[&<>"']/g, c => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        }[c]));
+
+        function table(headers, rows) {
+            return `<table>
+                    <thead><tr>${headers.map(h =>
+                `<th>${esc(h)}</th>`
+            ).join("")}</tr></thead>
+                    <tbody>${rows.map(r =>
+                `<tr>${r.map(v => `<td>${v}</td>`).join("")}</tr>`
+            ).join("") || `<tr><td colspan="${headers.length}">No data</td></tr>`}</tbody>
+                </table>`;
+        }
+
+        function metric(prefix, obj) {
+            const pct = Number(obj?.used_percent || 0);
+
+            byId(prefix).textContent = pct.toFixed(1) + "%";
+            byId(prefix + "detail").textContent =
+                bytes(obj?.used_bytes) + " used / " +
+                bytes(obj?.total_bytes) + " total";
+
+            byId(prefix + "bar").style.width =
+                Math.min(100, Math.max(0, pct)) + "%";
+        }
+
+        async function refresh() {
+            if (busy) return;
+            busy = true;
+            byId("status").textContent = "Refreshing…";
+
+            try {
+                const [sysRes, dockRes] = await Promise.all([
+                    fetch("/api/system", {
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    }),
+                    fetch("/api/docker", {
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    })
+                ]);
+
+                if (sysRes.status === 401 || sysRes.status === 403 ||
+                    dockRes.status === 401 || dockRes.status === 403) {
+                    window.location.replace("/login");
+                    return;
+                }
+
+                if (!sysRes.ok || !dockRes.ok) {
+                    throw Error("API error (" +
+                        sysRes.status + "/" + dockRes.status + ")");
+                }
+
+                const s = await sysRes.json();
+                const d = await dockRes.json();
+
+                metric("disk", s.disk);
+                metric("memory", s.memory);
+
+                byId("containers").textContent = d.containers.length;
+                byId("projects").textContent = d.projects.length;
+
+                byId("storage").innerHTML = table(
+                    ["Resource", "Size", "Reclaimable"],
+                    (d.storage || []).map(x => [
+                        esc(x.Type || x.raw || "—"),
+                        esc(x.Size || "—"),
+                        esc(x.Reclaimable || "—")
+                    ])
+                );
+
+                byId("projectlist").innerHTML = table(
+                    ["Project", "Containers"],
+                    (d.projects || []).map(p => [
+                        esc(p.name),
+                        esc(p.container_count)
+                    ])
+                );
+
+                byId("containerlist").innerHTML = table(
+                    ["Name", "Project", "Status", "Writable / virtual size", "Image"],
+                    (d.containers || []).map(c => [
+                        esc(c.name),
+                        esc(c.project),
+                        `<span class="pill">${esc(c.status)}</span>`,
+                        esc(c.size),
+                        esc(c.image)
+                    ])
+                );
+
+                byId("status").textContent =
+                    "Live · " + new Date().toLocaleTimeString();
+
+            } catch (error) {
+                byId("status").textContent = "API error: " + error.message;
+            } finally {
+                busy = false;
+            }
+        }
+
+        async function startDashboard() {
+            byId("status").textContent = "Checking session…";
+
+            const authenticated = await checkSession();
+
+            if (!authenticated) return;
+
+            await refresh();
+            refreshTimer = setInterval(refresh, 15000);
+        }
+
+        startDashboard();
+    </script>
+
+
+    <!-- <script>
+        const byId = id => document.getElementById(id);
+        const bytes = n => {if (n == null || !Number.isFinite(Number(n))) return "—"; n = Number(n); const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0; while (n >= 1024 && i < u.length - 1) {n /= 1024; i++} return n.toFixed(i ? 1 : 0) + " " + u[i]};
+        const esc = s => String(s ?? "—").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+        function table(headers, rows) {return `<table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(v => `<td>${v}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${headers.length}">No data</td></tr>`}</tbody></table>`}
+        function metric(prefix, obj) {let pct = Number(obj.used_percent || 0); byId(prefix).textContent = pct.toFixed(1) + "%"; byId(prefix + "detail").textContent = bytes(obj.used_bytes) + " used / " + bytes(obj.total_bytes) + " total"; byId(prefix + "bar").style.width = Math.min(100, Math.max(0, pct)) + "%"}
+        async function refresh() {
+            byId("status").textContent = "Refreshing…"; try {
+                const [sysRes, dockRes] = await Promise.all([fetch("/api/system"), fetch("/api/docker")]);
+                if (!sysRes.ok || !dockRes.ok) throw Error("API error (" + sysRes.status + "/" + dockRes.status + ")");
+                const s = await sysRes.json(), d = await dockRes.json();
+                metric("disk", s.disk); metric("memory", s.memory);
+                byId("containers").textContent = d.containers.length; byId("projects").textContent = d.projects.length;
+                byId("storage").innerHTML = table(["Resource", "Size", "Reclaimable"], d.storage.map(x => [esc(x.Type || x.raw || "—"), esc(x.Size || "—"), esc(x.Reclaimable || "—")]));
+                byId("projectlist").innerHTML = table(["Project", "Containers"], d.projects.map(p => [esc(p.name), p.container_count]));
+                byId("containerlist").innerHTML = table(["Name", "Project", "Status", "Writable / virtual size", "Image"], d.containers.map(c => [esc(c.name), esc(c.project), `<span class="pill">${esc(c.status)}</span>`, esc(c.size), esc(c.image)]));
+                byId("status").textContent = "Live · " + new Date().toLocaleTimeString();
+            } catch (e) {byId("status").innerHTML = '<span class="error">API error: ' + esc(e.message) + '</span>'}
+        }
+        refresh(); setInterval(refresh, 15000);
+    </script> -->
 </body>
+
 </html>
