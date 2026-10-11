@@ -1,0 +1,475 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#080d18" />
+  <title>Sign in | VPS Monitor</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080d18;
+      --panel: #101827;
+      --border: #243147;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --accent-hover: #3b82f6;
+      --danger: #fca5a5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+        BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(ellipse at 50% 0%, #172b4a 0%, transparent 48%),
+        var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .login-wrapper {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .brand-icon {
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 16px;
+      border-radius: 18px;
+      color: #bfdbfe;
+      background: linear-gradient(145deg, #1d4ed8, #172554);
+      border: 1px solid #3b82f6;
+      box-shadow: 0 12px 40px #2563eb25;
+    }
+
+    .brand-icon svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    .brand h1 {
+      font-size: 25px;
+      letter-spacing: -0.8px;
+      margin: 0;
+    }
+
+    .brand p {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 9px 0 0;
+    }
+
+    .card {
+      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 24px 80px #00000035;
+    }
+
+    .card h2 {
+      font-size: 21px;
+      letter-spacing: -0.4px;
+      margin: 0 0 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0 0 27px;
+    }
+
+    .field {
+      margin-bottom: 19px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 9px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      color: var(--text);
+      background: #0b1220;
+      border: 1px solid #2a3850;
+      border-radius: 10px;
+      outline: none;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input::placeholder {
+      color: #64748b;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px #60a5fa20;
+    }
+
+    input[type="password"],
+    input.password-visible {
+      padding-right: 70px;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      padding: 5px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .toggle-password:hover {
+      color: var(--text);
+    }
+
+    .form-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 2px 0 24px;
+      font-size: 12px;
+    }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      cursor: pointer;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .remember input {
+      width: 15px;
+      height: 15px;
+      padding: 0;
+      accent-color: var(--accent-hover);
+    }
+
+    .form-options a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+
+    .form-options a:hover {
+      text-decoration: underline;
+    }
+
+    .submit-btn {
+      width: 100%;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent-hover);
+      color: white;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .submit-btn:hover {
+      background: #2563eb;
+    }
+
+    .submit-btn:active {
+      transform: scale(0.99);
+    }
+
+    .submit-btn:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    .message {
+      display: none;
+      padding: 12px;
+      border-radius: 9px;
+      margin: 0 0 18px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .message.error {
+      display: block;
+      color: var(--danger);
+      background: #7f1d1d25;
+      border: 1px solid #7f1d1d70;
+    }
+
+    .message.success {
+      display: block;
+      color: #86efac;
+      background: #14532d25;
+      border: 1px solid #16653470;
+    }
+
+    .security-note {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 24px;
+    }
+
+    .security-note svg {
+      width: 15px;
+      height: 15px;
+      color: #86efac;
+      flex-shrink: 0;
+    }
+
+    footer {
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+      margin-top: 27px;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 18px;
+      }
+
+      .card {
+        padding: 25px 21px;
+      }
+
+      .brand h1 {
+        font-size: 23px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="login-wrapper">
+    <header class="brand">
+      <div class="brand-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="7" rx="2"/>
+          <rect x="3" y="13" width="18" height="7" rx="2"/>
+          <path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/>
+        </svg>
+      </div>
+
+      <h1>VPS Monitor</h1>
+      <p>Your infrastructure. One clear view.</p>
+    </header>
+
+    <section class="card">
+      <h2>Welcome back</h2>
+      <p class="subtitle">
+        Sign in to access your server monitoring dashboard.
+      </p>
+
+      <div id="message" class="message" role="alert"
+           aria-live="polite"></div>
+
+      <form id="login-form">
+        <div class="field">
+          <label for="email">Email address</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+
+          <div class="input-wrap">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            />
+
+            <button
+              class="toggle-password"
+              id="toggle-password"
+              type="button"
+              aria-label="Show password"
+            >Show</button>
+          </div>
+        </div>
+
+        <div class="form-options">
+          <label class="remember">
+            <input id="remember" type="checkbox" />
+            Remember me
+          </label>
+
+          <a href="/forgot-password">Forgot password?</a>
+        </div>
+
+        <button class="submit-btn" id="submit-btn" type="submit">
+          <span id="button-text">Sign in</span>
+          <svg width="17" height="17" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </form>
+
+      <div class="security-note">
+        <svg viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <rect x="4" y="10" width="16" height="11" rx="2"/>
+          <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+        </svg>
+        Protected access to your infrastructure
+      </div>
+    </section>
+
+    <footer>
+      VPS Monitor &copy; <span id="year"></span>
+    </footer>
+  </main>
+
+  <script>
+    const form = document.getElementById("login-form");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const togglePassword = document.getElementById("toggle-password");
+    const submitButton = document.getElementById("submit-btn");
+    const buttonText = document.getElementById("button-text");
+    const message = document.getElementById("message");
+
+    document.getElementById("year").textContent =
+      new Date().getFullYear();
+
+    togglePassword.addEventListener("click", () => {
+      const show = passwordInput.type === "password";
+
+      passwordInput.type = show ? "text" : "password";
+      togglePassword.textContent = show ? "Hide" : "Show";
+      togglePassword.setAttribute(
+        "aria-label",
+        show ? "Hide password" : "Show password"
+      );
+    });
+
+    function showMessage(text, type = "error") {
+      message.textContent = text;
+      message.className = `message ${type}`;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      message.className = "message";
+      submitButton.disabled = true;
+      buttonText.textContent = "Signing in...";
+
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            email: emailInput.value.trim(),
+            password: passwordInput.value,
+            remember: document.getElementById("remember").checked
+          })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(
+            result.message ||
+            (response.status === 404
+              ? "Login service is not configured yet."
+              : "Unable to sign in. Check your credentials and try again.")
+          );
+        }
+
+        if (result.success === false) {
+          throw new Error(result.message || "Sign-in failed.");
+        }
+
+        showMessage("Sign-in successful. Redirecting...", "success");
+        window.location.assign("/");
+      } catch (error) {
+        showMessage(
+          error instanceof TypeError
+            ? "Cannot reach the server. Check your connection and try again."
+            : error.message
+        );
+      } finally {
+        submitButton.disabled = false;
+        buttonText.textContent = "Sign in";
+      }
+    });
+  </script>
+</body>
+</html>
