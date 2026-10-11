@@ -791,7 +791,33 @@ json docker_data() {
     };
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc == 3 &&
+        std::string(argv[1]) == "--reset-password") {
+        try {
+            reset_user_password(argv[2]);
+            return 0;
+        } catch (const std::exception& e) {
+            std::cerr << "Password reset failed: "
+                      << e.what() << '\n';
+            return 1;
+        }
+    }
+
+    if (argc != 1) {
+        std::cerr
+            << "Usage: /app/vps-monitor "
+            << "[--reset-password USERNAME]\n";
+        return 2;
+    }
+
+    try {
+        initialize_auth_db();
+    } catch (const std::exception& e) {
+        std::cerr << "Authentication database initialization failed: "
+                  << e.what() << '\n';
+        return 1;
+    }
     try {
         initialize_auth_db();
     } catch (const std::exception& e) {
