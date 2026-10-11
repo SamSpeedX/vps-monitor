@@ -10,7 +10,11 @@
 using json = nlohmann::json;
 
 static const std::string FRONTEND = "/app/frontend";
-static const std::string AGENT = "/app/agent/monitor";
+// static const std::string AGENT = "/app/agent/monitor";
+static const std::string AGENT =
+    std::getenv("AGENT_PATH")
+        ? std::getenv("AGENT_PATH")
+        : "/app/agent/monitor";
 
 std::string read_file(const std::string& path) {
     std::ifstream file(path, std::ios::binary);
