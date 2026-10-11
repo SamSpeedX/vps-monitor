@@ -1,4 +1,3 @@
-cat > CMakeLists.txt <<'EOF'
 cmake_minimum_required(VERSION 3.20)
 
 project(vps_monitor LANGUAGES CXX)
@@ -23,4 +22,3 @@ target_link_libraries(vps-monitor PRIVATE
 )
 
 target_compile_definitions(vps-monitor PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
-EOF
