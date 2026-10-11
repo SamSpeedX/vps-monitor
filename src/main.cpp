@@ -1,6 +1,13 @@
 #include "httplib.h"
 #include "json.hpp"
 
+#include <sqlite3.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+
+#include <array>
+#include <cstdint>
+
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -154,6 +161,238 @@ static std::string env_or(
 ) {
     const char* value = std::getenv(name);
     return value && *value ? value : fallback;
+}
+
+
+static std::string auth_db_path() {
+    return env_or("AUTH_DB_PATH", "/data/vps-monitor.sqlite");
+}
+
+static std::string bytes_to_hex(
+    const unsigned char* data,
+    std::size_t length
+) {
+    static constexpr char hex[] = "0123456789abcdef";
+    std::string result;
+    result.reserve(length * 2);
+
+    for (std::size_t i = 0; i < length; ++i) {
+        result.push_back(hex[data[i] >> 4]);
+        result.push_back(hex[data[i] & 0x0f]);
+    }
+
+    return result;
+}
+
+static std::string generate_initial_password() {
+    std::array<unsigned char, 24> bytes{};
+
+    if (RAND_bytes(bytes.data(), static_cast<int>(bytes.size())) != 1) {
+        throw std::runtime_error("Secure password generation failed");
+    }
+
+    return bytes_to_hex(bytes.data(), bytes.size());
+}
+
+static std::string hash_password(
+    const std::string& password,
+    const std::string& salt
+) {
+    std::array<unsigned char, 32> hash{};
+
+    if (PKCS5_PBKDF2_HMAC(
+            password.c_str(),
+            static_cast<int>(password.size()),
+            reinterpret_cast<const unsigned char*>(salt.data()),
+            static_cast<int>(salt.size()),
+            210000,
+            EVP_sha256(),
+            static_cast<int>(hash.size()),
+            hash.data()
+        ) != 1) {
+        throw std::runtime_error("Password hashing failed");
+    }
+
+    return bytes_to_hex(hash.data(), hash.size());
+}
+
+static sqlite3* open_auth_db() {
+    sqlite3* db = nullptr;
+
+    if (sqlite3_open(auth_db_path().c_str(), &db) != SQLITE_OK) {
+        std::string error = db ? sqlite3_errmsg(db) : "SQLite open failed";
+
+        if (db) {
+            sqlite3_close(db);
+        }
+
+        throw std::runtime_error(error);
+    }
+
+    sqlite3_busy_timeout(db, 5000);
+
+    return db;
+}
+
+static void initialize_auth_db() {
+    sqlite3* db = open_auth_db();
+
+    try {
+        const char* schema = R"SQL(
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                password_salt TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        )SQL";
+
+        char* error = nullptr;
+
+        if (sqlite3_exec(db, schema, nullptr, nullptr, &error) != SQLITE_OK) {
+            std::string message = error ? error : "Schema creation failed";
+            sqlite3_free(error);
+            throw std::runtime_error(message);
+        }
+
+        sqlite3_stmt* statement = nullptr;
+
+        if (sqlite3_prepare_v2(
+                db,
+                "SELECT COUNT(*) FROM users",
+                -1,
+                &statement,
+                nullptr
+            ) != SQLITE_OK) {
+            throw std::runtime_error(sqlite3_errmsg(db));
+        }
+
+        int result = sqlite3_step(statement);
+        int user_count = result == SQLITE_ROW
+            ? sqlite3_column_int(statement, 0)
+            : -1;
+
+        sqlite3_finalize(statement);
+
+        if (user_count < 0) {
+            throw std::runtime_error("Unable to count users");
+        }
+
+        if (user_count == 0) {
+            const std::string password = generate_initial_password();
+
+            std::array<unsigned char, 16> salt_bytes{};
+
+            if (RAND_bytes(
+                    salt_bytes.data(),
+                    static_cast<int>(salt_bytes.size())
+                ) != 1) {
+                throw std::runtime_error("Secure salt generation failed");
+            }
+
+            const std::string salt =
+                bytes_to_hex(salt_bytes.data(), salt_bytes.size());
+
+            const std::string password_hash =
+                hash_password(password, salt);
+
+            if (sqlite3_prepare_v2(
+                    db,
+                    "INSERT INTO users "
+                    "(username, password_hash, password_salt) "
+                    "VALUES (?, ?, ?)",
+                    -1,
+                    &statement,
+                    nullptr
+                ) != SQLITE_OK) {
+                throw std::runtime_error(sqlite3_errmsg(db));
+            }
+
+            sqlite3_bind_text(
+                statement, 1, "amin", -1, SQLITE_STATIC
+            );
+            sqlite3_bind_text(
+                statement, 2, password_hash.c_str(), -1, SQLITE_TRANSIENT
+            );
+            sqlite3_bind_text(
+                statement, 3, salt.c_str(), -1, SQLITE_TRANSIENT
+            );
+
+            if (sqlite3_step(statement) != SQLITE_DONE) {
+                sqlite3_finalize(statement);
+                throw std::runtime_error(sqlite3_errmsg(db));
+            }
+
+            sqlite3_finalize(statement);
+
+            // This should happen only when the initial account is created.
+            std::cout
+                << "\n========== VPS MONITOR INITIAL LOGIN ==========\n"
+                << "Username: amin\n"
+                << "Password: " << password << "\n"
+                << "Save this password now. It will not be shown again.\n"
+                << "===============================================\n"
+                << std::endl;
+        }
+
+        sqlite3_close(db);
+    } catch (...) {
+        sqlite3_close(db);
+        throw;
+    }
+}
+
+static bool verify_user_password(
+    const std::string& username,
+    const std::string& password
+) {
+    sqlite3* db = open_auth_db();
+
+    try {
+        sqlite3_stmt* statement = nullptr;
+
+        const char* query =
+            "SELECT password_hash, password_salt "
+            "FROM users WHERE username = ? LIMIT 1";
+
+        if (sqlite3_prepare_v2(
+                db, query, -1, &statement, nullptr
+            ) != SQLITE_OK) {
+            throw std::runtime_error(sqlite3_errmsg(db));
+        }
+
+        sqlite3_bind_text(
+            statement, 1, username.c_str(), -1, SQLITE_TRANSIENT
+        );
+
+        bool valid = false;
+
+        if (sqlite3_step(statement) == SQLITE_ROW) {
+            const auto* stored_hash = reinterpret_cast<const char*>(
+                sqlite3_column_text(statement, 0)
+            );
+
+            const auto* stored_salt = reinterpret_cast<const char*>(
+                sqlite3_column_text(statement, 1)
+            );
+
+            if (stored_hash && stored_salt) {
+                const std::string calculated =
+                    hash_password(password, stored_salt);
+
+                valid = constant_time_equal(calculated, stored_hash);
+            }
+        }
+
+        sqlite3_finalize(statement);
+        sqlite3_close(db);
+
+        return valid;
+    } catch (...) {
+        sqlite3_close(db);
+        throw;
+    }
 }
 
 static const std::string FRONTEND =
