@@ -324,10 +324,10 @@
         <div class="field">
           <label for="email">Email address</label>
           <input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="you@example.com"
+            id="text"
+            name="username"
+            type="text"
+            placeholder="sam"
             autocomplete="username"
             required
           />
@@ -394,7 +394,7 @@
 
   <script>
     const form = document.getElementById("login-form");
-    const emailInput = document.getElementById("email");
+    const usernameInput = document.getElementById("username");
     const passwordInput = document.getElementById("password");
     const togglePassword = document.getElementById("toggle-password");
     const submitButton = document.getElementById("submit-btn");
@@ -436,7 +436,7 @@
             "Accept": "application/json"
           },
           body: JSON.stringify({
-            email: emailInput.value.trim(),
+            username: usernameInput.value.trim(),
             password: passwordInput.value,
             remember: document.getElementById("remember").checked
           })
