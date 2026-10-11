@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(SQLite3 REQUIRED)
 
 add_executable(vps-monitor
     src/main.cpp
@@ -19,6 +20,7 @@ target_link_libraries(vps-monitor PRIVATE
     Threads::Threads
     OpenSSL::SSL
     OpenSSL::Crypto
+    SQLite::SQLite3
 )
 
 target_compile_definitions(vps-monitor PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
