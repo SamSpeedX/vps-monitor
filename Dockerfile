@@ -5,8 +5,17 @@ RUN apt-get update \
         build-essential \
         cmake \
         libssl-dev \
+        libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libssl3 \
+        libsqlite3-0 \
+        libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+    
 WORKDIR /src
 
 COPY CMakeLists.txt ./
