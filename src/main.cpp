@@ -22,7 +22,7 @@ using json = nlohmann::json;
 
 using Clock = std::chrono::steady_clock;
 
-static constexpr auto SESSION_LIFETIME = std::chrono::hours(8);
+static constexpr auto SESSION_LIFETIME = std::chrono::hours(1);
 
 static std::mutex sessions_mutex;
 
@@ -153,7 +153,7 @@ static void set_session_cookie(
 ) {
     std::string cookie =
         "vps_session=" + token +
-        "; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800";
+        "; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600";
 
     if (secure_cookies()) {
         cookie += "; Secure";
