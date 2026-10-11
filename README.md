@@ -115,10 +115,10 @@ Check the container status:
 docker compose ps
 ```
 
-View application logs:
+View application logs for initial username and password:
 
 ```bash
-docker compose logs -f
+docker compose logs --tail=100 vps-monitor
 ```
 
 Stop the application:
