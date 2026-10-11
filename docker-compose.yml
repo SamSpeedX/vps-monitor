@@ -11,6 +11,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/host:ro
+      - ./data:/data
     environment:
       HOST_ROOT: /host
     mem_limit: 256m
