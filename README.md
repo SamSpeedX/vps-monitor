@@ -1,16 +1,18 @@
 # VPS Monitor
 
-**A lightweight VPS monitoring dashboard powered by C++, Python, FastAPI, and Docker.**
+A lightweight VPS monitoring dashboard powered by C++ and Docker.
 
-VPS Monitor provides a web dashboard for viewing server system information and Docker container data. It combines a C++ monitoring agent with a FastAPI backend and a lightweight web frontend.
+VPS Monitor provides a web dashboard for viewing server system information,
+Docker containers, Docker Compose projects, and storage usage.
 
 ## Features
 
-- **System monitoring:** View server resource information through the system monitoring API.
-- **Docker monitoring:** Retrieve Docker-related information through the Docker CLI.
-- **Lightweight architecture:** C++ monitoring agent and Python FastAPI backend.
-- **Docker deployment:** Run the application in a container without manually installing its runtime dependencies.
-- **Web dashboard:** Access monitoring information from your browser.
+- C++ backend using cpp-httplib
+- JSON handling with nlohmann/json
+- System monitoring agent written in C++
+- Docker container and project monitoring
+- Lightweight web frontend
+- Docker-based deployment
 
 ## Requirements
 
