@@ -1,5 +1,6 @@
 services:
   vps-monitor:
+    image: samochu/vps-monitor:latest
     build:
       context: .
       dockerfile: Dockerfile
