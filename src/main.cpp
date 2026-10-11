@@ -13,6 +13,141 @@
 
 using json = nlohmann::json;
 
+using Clock = std::chrono::steady_clock;
+
+static constexpr auto SESSION_LIFETIME = std::chrono::hours(8);
+
+static std::mutex sessions_mutex;
+
+static std::unordered_map<
+    std::string,
+    Clock::time_point
+> sessions;
+
+static bool secure_cookies() {
+    return env_or("COOKIE_SECURE", "true") == "true";
+}
+
+static std::string generate_session_token() {
+    std::random_device random;
+    std::uniform_int_distribution<unsigned int> byte(0, 255);
+
+    std::ostringstream result;
+    result << std::hex << std::setfill('0');
+
+    for (int i = 0; i < 32; ++i) {
+        result << std::setw(2) << byte(random);
+    }
+
+    return result.str();
+}
+
+
+static std::string get_session_cookie(const httplib::Request& req) {
+    const std::string cookies = req.get_header_value("Cookie");
+    const std::string key = "vps_session=";
+
+    std::istringstream stream(cookies);
+    std::string item;
+
+    while (std::getline(stream, item, ';')) {
+        const auto first = item.find_first_not_of(" \t");
+
+        if (first == std::string::npos) {
+            continue;
+        }
+
+        item.erase(0, first);
+
+        if (item.compare(0, key.size(), key) == 0) {
+            return item.substr(key.size());
+        }
+    }
+
+    return {};
+}
+
+static bool authenticated(const httplib::Request& req) {
+    const std::string token = get_session_cookie(req);
+
+    if (token.empty()) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(sessions_mutex);
+
+    const auto it = sessions.find(token);
+
+    if (it == sessions.end()) {
+        return false;
+    }
+
+    if (Clock::now() >= it->second) {
+        sessions.erase(it);
+        return false;
+    }
+
+    return true;
+}
+
+static bool constant_time_equal(
+    const std::string& a,
+    const std::string& b
+) {
+    const std::size_t length = std::max(a.size(), b.size());
+    unsigned int difference =
+        static_cast<unsigned int>(a.size() ^ b.size());
+
+    for (std::size_t i = 0; i < length; ++i) {
+        const unsigned char x =
+            i < a.size() ? static_cast<unsigned char>(a[i]) : 0;
+
+        const unsigned char y =
+            i < b.size() ? static_cast<unsigned char>(b[i]) : 0;
+
+        difference |= x ^ y;
+    }
+
+    return difference == 0;
+}
+
+static bool require_auth(
+    const httplib::Request& req,
+    httplib::Response& res
+) {
+    if (authenticated(req)) {
+        return true;
+    }
+
+    res.status = 401;
+    res.set_header("Cache-Control", "no-store");
+    res.set_content(
+        json{
+            {"success", false},
+            {"message", "Authentication required"}
+        }.dump(),
+        "application/json"
+    );
+
+    return false;
+}
+
+static void set_session_cookie(
+    httplib::Response& res,
+    const std::string& token
+) {
+    std::string cookie =
+        "vps_session=" + token +
+        "; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800";
+
+    if (secure_cookies()) {
+        cookie += "; Secure";
+    }
+
+    res.set_header("Set-Cookie", cookie);
+    res.set_header("Cache-Control", "no-store");
+}
+
 static std::string env_or(
     const char* name,
     const std::string& fallback
@@ -253,7 +388,151 @@ json docker_data() {
 int main() {
     httplib::Server server;
 
-    server.Get("/", [](const httplib::Request&, httplib::Response& res) {
+    server.Get("/login",
+    [](const httplib::Request&, httplib::Response& res) {
+        const auto html = read_file(FRONTEND + "/login.html");
+
+        if (html.empty()) {
+            res.status = 500;
+            res.set_content(
+                "Login page not found",
+                "text/plain"
+            );
+            return;
+        }
+
+        res.set_header("Cache-Control", "no-store");
+        res.set_content(html, "text/html; charset=utf-8");
+    }
+);
+
+server.Post("/api/auth/login",
+    [](const httplib::Request& req, httplib::Response& res) {
+        const std::string expected_email =
+            env_or("AUTH_EMAIL", "");
+
+        const std::string expected_password =
+            env_or("AUTH_PASSWORD", "");
+
+        if (expected_email.empty() || expected_password.empty()) {
+            res.status = 503;
+            res.set_content(
+                json{
+                    {"success", false},
+                    {"message", "Authentication is not configured"}
+                }.dump(),
+                "application/json"
+            );
+            return;
+        }
+
+        json body;
+
+        try {
+            body = json::parse(req.body);
+        } catch (...) {
+            res.status = 400;
+            res.set_content(
+                json{{"success", false},
+                     {"message", "Invalid JSON body"}}.dump(),
+                "application/json"
+            );
+            return;
+        }
+
+        if (!body.is_object() ||
+            !body.contains("email") ||
+            !body.contains("password") ||
+            !body["email"].is_string() ||
+            !body["password"].is_string()) {
+            res.status = 400;
+            res.set_content(
+                json{{"success", false},
+                     {"message", "Email and password are required"}}.dump(),
+                "application/json"
+            );
+            return;
+        }
+
+        const std::string email = body["email"].get<std::string>();
+        const std::string password =
+            body["password"].get<std::string>();
+
+        if (!constant_time_equal(email, expected_email) ||
+            !constant_time_equal(password, expected_password)) {
+            res.status = 401;
+            res.set_header("Cache-Control", "no-store");
+            res.set_content(
+                json{{"success", false},
+                     {"message", "Invalid email or password"}}.dump(),
+                "application/json"
+            );
+            return;
+        }
+
+        const std::string token = generate_session_token();
+
+        {
+            std::lock_guard<std::mutex> lock(sessions_mutex);
+
+            sessions[token] = Clock::now() + SESSION_LIFETIME;
+        }
+
+        set_session_cookie(res, token);
+
+        res.set_content(
+            json{{"success", true}}.dump(),
+            "application/json"
+        );
+    }
+);
+
+server.Get("/api/auth/me",
+    [](const httplib::Request& req, httplib::Response& res) {
+        if (!require_auth(req, res)) {
+            return;
+        }
+
+        res.set_header("Cache-Control", "no-store");
+        res.set_content(
+            json{{"authenticated", true}}.dump(),
+            "application/json"
+        );
+    }
+);
+
+server.Post("/api/auth/logout",
+    [](const httplib::Request& req, httplib::Response& res) {
+        const std::string token = get_session_cookie(req);
+
+        if (!token.empty()) {
+            std::lock_guard<std::mutex> lock(sessions_mutex);
+            sessions.erase(token);
+        }
+
+        std::string cookie =
+            "vps_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
+
+        if (secure_cookies()) {
+            cookie += "; Secure";
+        }
+
+        res.set_header("Set-Cookie", cookie);
+        res.set_header("Cache-Control", "no-store");
+        res.set_content(
+            json{{"success", true}}.dump(),
+            "application/json"
+        );
+    });
+
+    server.Get("/", [](const httplib::Request& req, httplib::Response& res) {
+        if (!authenticated(req)) {
+            res.status = 302;
+            res.set_header("Location", "/login");
+            res.set_header("Cache-Control", "no-store");
+            return;
+        }
+        
         const auto html = read_file(FRONTEND + "/index.html");
 
         if (html.empty()) {
@@ -261,7 +540,8 @@ int main() {
             res.set_content("Dashboard file not found", "text/plain");
             return;
         }
-
+        
+        res.set_header("Cache-Control", "no-store");
         res.set_content(html, "text/html; charset=utf-8");
     });
 
@@ -275,7 +555,10 @@ int main() {
     );
 
     server.Get("/api/system",
-        [](const httplib::Request&, httplib::Response& res) {
+    [](const httplib::Request& req, httplib::Response& res) {
+        if (!require_auth(req, res)) {
+            return;
+        }
             try {
                 res.set_content(run_agent().dump(), "application/json");
             } catch (const std::exception& e) {
@@ -291,7 +574,10 @@ int main() {
     );
 
     server.Get("/api/docker",
-        [](const httplib::Request&, httplib::Response& res) {
+        [](const httplib::Request& req, httplib::Response& res) {
+        if (!require_auth(req, res)) {
+            return;
+        }
             try {
                 res.set_content(docker_data().dump(), "application/json");
             } catch (const std::exception& e) {
@@ -308,7 +594,10 @@ int main() {
     );
 
     server.Get("/api/overview",
-        [](const httplib::Request&, httplib::Response& res) {
+        [](const httplib::Request& req, httplib::Response& res) {
+        if (!require_auth(req, res)) {
+            return;
+        }
             try {
                 auto system = run_agent();
                 const auto docker = docker_data();
