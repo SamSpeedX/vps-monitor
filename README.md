@@ -134,6 +134,20 @@ docker compose pull
 docker compose up -d
 ```
 
+## Reset Password
+
+```
+docker exec -it vps-monitor /app/vps-monitor --reset-password sam
+```
+
+- the enter your password
+
+```text
+Enter new password:
+Confirm new password:
+Password reset successfully for user: sam
+```
+
 ## API Endpoints
 
 The backend provides the following monitoring endpoints:
@@ -224,9 +238,6 @@ For safer deployment:
 ## Technology Stack
 
 - **C++17** — system monitoring agent.
-- **Python 3.12** — backend runtime.
-- **FastAPI** — API framework.
-- **Uvicorn** — ASGI server.
 - **Docker** — containerized deployment.
 - **HTML, CSS, and JavaScript** — web frontend.
 
@@ -240,6 +251,7 @@ docker pull samochu/vps-monitor:latest
 
 Docker Hub repository:  
 https://hub.docker.com/r/samochu/vps-monitor
+
 
 ## License
 
