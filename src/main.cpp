@@ -1,6 +1,9 @@
 #include "httplib.h"
 #include "json.hpp"
 
+#include <termios.h>
+#include <unistd.h>
+
 #include <sqlite3.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -390,6 +393,171 @@ static bool verify_user_password(
         return valid;
     } catch (...) {
         sqlite3_close(db);
+        throw;
+    }
+}
+
+
+static std::string read_hidden_password(const std::string& prompt) {
+    if (!isatty(STDIN_FILENO)) {
+        throw std::runtime_error(
+            "Password reset must run from an interactive terminal"
+        );
+    }
+
+    termios old_settings{};
+
+    if (tcgetattr(STDIN_FILENO, &old_settings) != 0) {
+        throw std::runtime_error("Unable to read terminal settings");
+    }
+
+    termios new_settings = old_settings;
+    new_settings.c_lflag &= static_cast<tcflag_t>(~ECHO);
+
+    std::cout << prompt << std::flush;
+
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &new_settings) != 0) {
+        throw std::runtime_error("Unable to disable password echo");
+    }
+
+    std::string password;
+    const bool read_ok = static_cast<bool>(
+        std::getline(std::cin, password)
+    );
+
+    const int restore_result =
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &old_settings);
+
+    std::cout << '\n' << std::flush;
+
+    if (restore_result != 0) {
+        throw std::runtime_error("Unable to restore terminal settings");
+    }
+
+    if (!read_ok) {
+        throw std::runtime_error("Unable to read password");
+    }
+
+    return password;
+}
+
+static void reset_user_password(const std::string& username) {
+    if (username.empty()) {
+        throw std::runtime_error("Username cannot be empty");
+    }
+
+    const std::string password =
+        read_hidden_password("Enter new password: ");
+
+    const std::string confirmation =
+        read_hidden_password("Confirm new password: ");
+
+    if (password != confirmation) {
+        throw std::runtime_error("Passwords do not match");
+    }
+
+    if (password.size() < 12) {
+        throw std::runtime_error(
+            "Password must contain at least 12 characters"
+        );
+    }
+
+    std::array<unsigned char, 16> salt_bytes{};
+
+    if (RAND_bytes(
+            salt_bytes.data(),
+            static_cast<int>(salt_bytes.size())
+        ) != 1) {
+        throw std::runtime_error("Secure salt generation failed");
+    }
+
+    const std::string salt =
+        bytes_to_hex(salt_bytes.data(), salt_bytes.size());
+
+    const std::string password_hash = hash_password(password, salt);
+
+    sqlite3* db = nullptr;
+
+    // READWRITE without CREATE: never create an empty database by mistake.
+    if (sqlite3_open_v2(
+            auth_db_path().c_str(),
+            &db,
+            SQLITE_OPEN_READWRITE,
+            nullptr
+        ) != SQLITE_OK) {
+        const std::string error =
+            db ? sqlite3_errmsg(db) : "Unable to open authentication database";
+
+        if (db) {
+            sqlite3_close(db);
+        }
+
+        throw std::runtime_error(error);
+    }
+
+    sqlite3_busy_timeout(db, 5000);
+
+    sqlite3_stmt* statement = nullptr;
+
+    try {
+        const char* sql =
+            "UPDATE users "
+            "SET password_hash = ?, password_salt = ? "
+            "WHERE username = ?";
+
+        if (sqlite3_prepare_v2(
+                db, sql, -1, &statement, nullptr
+            ) != SQLITE_OK) {
+            throw std::runtime_error(sqlite3_errmsg(db));
+        }
+
+        sqlite3_bind_text(
+            statement, 1, password_hash.c_str(),
+            -1, SQLITE_TRANSIENT
+        );
+        sqlite3_bind_text(
+            statement, 2, salt.c_str(),
+            -1, SQLITE_TRANSIENT
+        );
+        sqlite3_bind_text(
+            statement, 3, username.c_str(),
+            -1, SQLITE_TRANSIENT
+        );
+
+        const int result = sqlite3_step(statement);
+
+        if (result != SQLITE_DONE) {
+            const std::string error = sqlite3_errmsg(db);
+            sqlite3_finalize(statement);
+            statement = nullptr;
+            throw std::runtime_error(error);
+        }
+
+        const int changed = sqlite3_changes(db);
+
+        sqlite3_finalize(statement);
+        statement = nullptr;
+
+        if (changed != 1) {
+            throw std::runtime_error(
+                "User not found; password was not changed"
+            );
+        }
+
+        sqlite3_close(db);
+        db = nullptr;
+
+        std::cout << "Password reset successfully for user: "
+                  << username << '\n';
+    } catch (...) {
+        if (statement) {
+            sqlite3_finalize(statement);
+        }
+
+        if (db) {
+            sqlite3_close(db);
+        }
+
         throw;
     }
 }
