@@ -1,0 +1,31 @@
+# Python
+**/.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# C++ build output
+agent/build/
+*.o
+*.so
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+
+# Compiled binaries
+agent/monitor
+agent/monitor.exe
+
+# Build artifacts
+build/
+dist/
