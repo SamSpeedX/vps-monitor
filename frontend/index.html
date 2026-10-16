@@ -227,7 +227,7 @@
             <h2>Containers</h2>
             <div id="containerlist" class="table-wrap muted">Loading containers…</div>
         </section>
-        <p class="muted">VPS Monitor v0.1 · Read-only monitoring | Copyright (C) Sam Software 2026</p>
+        <p class="muted">VPS Monitor v0.2.0 · Read-only monitoring | Copyright (C) Sam Software 2026</p>
     </main>
     <script>
 
@@ -415,29 +415,6 @@
 
         startDashboard();
     </script>
-
-
-    <!-- <script>
-        const byId = id => document.getElementById(id);
-        const bytes = n => {if (n == null || !Number.isFinite(Number(n))) return "—"; n = Number(n); const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0; while (n >= 1024 && i < u.length - 1) {n /= 1024; i++} return n.toFixed(i ? 1 : 0) + " " + u[i]};
-        const esc = s => String(s ?? "—").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
-        function table(headers, rows) {return `<table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(v => `<td>${v}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${headers.length}">No data</td></tr>`}</tbody></table>`}
-        function metric(prefix, obj) {let pct = Number(obj.used_percent || 0); byId(prefix).textContent = pct.toFixed(1) + "%"; byId(prefix + "detail").textContent = bytes(obj.used_bytes) + " used / " + bytes(obj.total_bytes) + " total"; byId(prefix + "bar").style.width = Math.min(100, Math.max(0, pct)) + "%"}
-        async function refresh() {
-            byId("status").textContent = "Refreshing…"; try {
-                const [sysRes, dockRes] = await Promise.all([fetch("/api/system"), fetch("/api/docker")]);
-                if (!sysRes.ok || !dockRes.ok) throw Error("API error (" + sysRes.status + "/" + dockRes.status + ")");
-                const s = await sysRes.json(), d = await dockRes.json();
-                metric("disk", s.disk); metric("memory", s.memory);
-                byId("containers").textContent = d.containers.length; byId("projects").textContent = d.projects.length;
-                byId("storage").innerHTML = table(["Resource", "Size", "Reclaimable"], d.storage.map(x => [esc(x.Type || x.raw || "—"), esc(x.Size || "—"), esc(x.Reclaimable || "—")]));
-                byId("projectlist").innerHTML = table(["Project", "Containers"], d.projects.map(p => [esc(p.name), p.container_count]));
-                byId("containerlist").innerHTML = table(["Name", "Project", "Status", "Writable / virtual size", "Image"], d.containers.map(c => [esc(c.name), esc(c.project), `<span class="pill">${esc(c.status)}</span>`, esc(c.size), esc(c.image)]));
-                byId("status").textContent = "Live · " + new Date().toLocaleTimeString();
-            } catch (e) {byId("status").innerHTML = '<span class="error">API error: ' + esc(e.message) + '</span>'}
-        }
-        refresh(); setInterval(refresh, 15000);
-    </script> -->
 </body>
 
 </html>
